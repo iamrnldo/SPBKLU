@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const User = require('../models/user.model');
 const Station = require('../models/station.model');
 const Battery = require('../models/battery.model');
@@ -84,8 +85,124 @@ const topUpUser = async (req, res, next) => {
   }
 };
 
+/**
+ * Create a new User or Admin (Admin only)
+ */
+const createUser = async (req, res, next) => {
+  try {
+    const { name, email, password, role, balance } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return sendError(res, 'Name, email, password, and role are required', 400);
+    }
+
+    const exists = await User.findOne({ where: { email } });
+    if (exists) {
+      return sendError(res, 'Email already registered', 400);
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      balance: role === 'admin' ? 0 : (parseInt(balance) || 0)
+    });
+
+    return sendSuccess(res, 'User created successfully', {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+      balance: newUser.balance
+    }, 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update an existing User or Admin (Admin only)
+ */
+const updateUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, email, password, role, balance } = req.body;
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return sendError(res, 'User not found', 404);
+    }
+
+    // Check if email unique if changed
+    if (email && email !== user.email) {
+      const exists = await User.findOne({ where: { email } });
+      if (exists) {
+        return sendError(res, 'Email already in use by another account', 400);
+      }
+      user.email = email;
+    }
+
+    if (name) user.name = name;
+    if (role) user.role = role;
+    if (balance !== undefined) user.balance = role === 'admin' ? 0 : parseInt(balance);
+
+    if (password && password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+
+    await user.save();
+
+    return sendSuccess(res, 'User updated successfully', {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      balance: user.balance
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete a User (Admin only)
+ */
+const deleteUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent admin from deleting themselves
+    if (parseInt(id) === req.user.id) {
+      return sendError(res, 'Akses ditolak. Anda tidak bisa menghapus akun Anda sendiri.', 400);
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return sendError(res, 'User not found', 404);
+    }
+
+    // Delete associated batteries dependencies first (nullify currentUserId on those batteries)
+    await Battery.update({ currentUserId: null, status: 'idle' }, { where: { currentUserId: id } });
+
+    await user.destroy();
+
+    return sendSuccess(res, 'User deleted successfully', { id });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAllUsers,
-  topUpUser
+  topUpUser,
+  createUser,
+  updateUser,
+  deleteUser
 };

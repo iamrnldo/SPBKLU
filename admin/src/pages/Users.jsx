@@ -1,20 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import Table from '../components/Table';
+import { useAuth } from '../hooks/useAuth';
 import { formatDate, formatRupiah } from '../utils/formatter';
-import { Search, PlusCircle, Coins, X, Check, Loader, UserPlus, AlertCircle } from 'lucide-react';
+import { 
+  Search, 
+  Coins, 
+  X, 
+  Check, 
+  Loader, 
+  UserPlus, 
+  Edit2, 
+  Trash2, 
+  AlertTriangle,
+  Lock,
+  Mail,
+  User,
+  ShieldAlert
+} from 'lucide-react';
 
 const Users = () => {
+  const { user: currentAdmin } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Topup modal states
+  // Modals visibility
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Form states (Add & Edit)
+  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'user',
+    balance: '0'
+  });
+
   const [topUpAmount, setTopUpAmount] = useState('');
-  const [isSubmittingTopUp, setIsSubmittingTopUp] = useState(false);
-  const [topUpSuccessMsg, setTopUpSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const fetchUsers = async () => {
     try {
@@ -32,43 +63,156 @@ const Users = () => {
     fetchUsers();
   }, []);
 
+  // --- TOP UP FUNCTIONS ---
   const handleOpenTopUp = (user) => {
     setSelectedUser(user);
     setTopUpAmount('');
-    setTopUpSuccessMsg('');
+    setSuccessMsg('');
+    setErrorMsg('');
     setShowTopUpModal(true);
-  };
-
-  const handleCloseTopUp = () => {
-    setShowTopUpModal(false);
-    setSelectedUser(null);
   };
 
   const handleTopUpSubmit = async (e) => {
     e.preventDefault();
     if (!topUpAmount || parseInt(topUpAmount) <= 0) return;
 
-    setIsSubmittingTopUp(true);
+    setIsSubmitting(true);
+    setErrorMsg('');
     try {
       const response = await api.post(`/admin/users/${selectedUser.id}/topup`, {
         amount: parseInt(topUpAmount)
       });
       
-      setTopUpSuccessMsg(response.data.message || 'Saldo berhasil ditambahkan!');
-      
-      // Refresh user list to reflect changes
+      setSuccessMsg(response.data.message || 'Saldo berhasil ditambahkan!');
       fetchUsers();
-      
-      // Auto-close after 1.5s
       setTimeout(() => {
-        handleCloseTopUp();
+        setShowTopUpModal(false);
+        setSelectedUser(null);
       }, 1500);
-
     } catch (error) {
-      console.error('Gagal top up saldo user:', error);
-      alert('Gagal top up: ' + (error.response?.data?.message || error.message));
+      console.error('Gagal top up:', error);
+      setErrorMsg(error.response?.data?.message || 'Gagal mengisi saldo.');
     } finally {
-      setIsSubmittingTopUp(false);
+      setIsSubmitting(false);
+    }
+  };
+
+  // --- CREATE / EDIT FUNCTIONS ---
+  const handleOpenAdd = () => {
+    setIsEditMode(false);
+    setSelectedUser(null);
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      role: 'user',
+      balance: '0'
+    });
+    setSuccessMsg('');
+    setErrorMsg('');
+    setShowFormModal(true);
+  };
+
+  const handleOpenEdit = (user) => {
+    setIsEditMode(true);
+    setSelectedUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '', // Blank password unless they want to change it
+      role: user.role,
+      balance: String(user.balance || 0)
+    });
+    setSuccessMsg('');
+    setErrorMsg('');
+    setShowFormModal(true);
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setIsSubmitting(true);
+
+    if (!formData.name || !formData.email) {
+      setErrorMsg('Nama dan email wajib diisi.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!isEditMode && !formData.password) {
+      setErrorMsg('Password wajib diisi untuk akun baru.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      if (isEditMode) {
+        // Edit User
+        const response = await api.put(`/admin/users/${selectedUser.id}`, {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          balance: formData.role === 'admin' ? 0 : parseInt(formData.balance || 0),
+          password: formData.password || undefined // Only send if not blank
+        });
+        setSuccessMsg('Akun berhasil diperbarui!');
+      } else {
+        // Add User
+        const response = await api.post('/admin/users', {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          balance: formData.role === 'admin' ? 0 : parseInt(formData.balance || 0)
+        });
+        setSuccessMsg('Akun baru berhasil didaftarkan!');
+      }
+
+      fetchUsers();
+      setTimeout(() => {
+        setShowFormModal(false);
+        setSelectedUser(null);
+      }, 1500);
+    } catch (error) {
+      console.error('Gagal menyimpan user:', error);
+      setErrorMsg(error.response?.data?.message || 'Gagal memproses data.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // --- DELETE FUNCTIONS ---
+  const handleOpenDelete = (user) => {
+    setSelectedUser(user);
+    setErrorMsg('');
+    setSuccessMsg('');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteSubmit = async () => {
+    setIsSubmitting(true);
+    setErrorMsg('');
+    
+    // Prevent self-deletion
+    if (selectedUser.id === currentAdmin?.id) {
+      setErrorMsg('Anda tidak bisa menghapus akun Anda sendiri.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      await api.delete(`/admin/users/${selectedUser.id}`);
+      setSuccessMsg('Akun berhasil dihapus!');
+      fetchUsers();
+      setTimeout(() => {
+        setShowDeleteModal(false);
+        setSelectedUser(null);
+      }, 1500);
+    } catch (error) {
+      console.error('Gagal menghapus user:', error);
+      setErrorMsg(error.response?.data?.message || 'Gagal menghapus akun.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -79,12 +223,19 @@ const Users = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top action header bar */}
+      {/* Upper Action Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Manajemen Akun User</h1>
-          <p className="text-sm font-medium text-slate-500">Kelola informasi pelanggan, lihat sisa saldo dompet, dan lakukan pengisian ulang (Top Up).</p>
+          <p className="text-sm font-medium text-slate-500">Kelola informasi pelanggan, tambahkan akun admin/user baru, edit profil, top-up saldo, atau hapus pengguna.</p>
         </div>
+        <button
+          onClick={handleOpenAdd}
+          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl transition shadow-md shadow-emerald-500/15 active:scale-95"
+        >
+          <UserPlus className="h-5 w-5" />
+          Tambah Pengguna Baru
+        </button>
       </div>
 
       {/* Search and control widgets */}
@@ -137,53 +288,78 @@ const Users = () => {
               </td>
               <td className="px-6 py-4 text-slate-500 text-xs">{formatDate(user.createdAt)}</td>
               <td className="px-6 py-4">
-                {user.role !== 'admin' ? (
+                <div className="flex items-center gap-2">
+                  {/* Top Up button only for user role */}
+                  {user.role !== 'admin' && (
+                    <button
+                      onClick={() => handleOpenTopUp(user)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-500 font-bold text-xs rounded-lg transition-all"
+                      title="Isi Saldo"
+                    >
+                      <Coins className="h-3.5 w-3.5" />
+                      Top Up
+                    </button>
+                  )}
+                  
+                  {/* Edit button */}
                   <button
-                    onClick={() => handleOpenTopUp(user)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-200 hover:border-emerald-500 font-bold text-xs rounded-lg transition-all"
+                    onClick={() => handleOpenEdit(user)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200 hover:border-blue-500 font-bold text-xs rounded-lg transition-all"
+                    title="Ubah Profil"
                   >
-                    <Coins className="h-3.5 w-3.5" />
-                    Top Up
+                    <Edit2 className="h-3.5 w-3.5" />
+                    Edit
                   </button>
-                ) : (
-                  <span className="text-xs text-slate-400 font-medium italic">Tidak ada aksi</span>
-                )}
+
+                  {/* Delete button (Prevent delete self) */}
+                  {user.id !== currentAdmin?.id ? (
+                    <button
+                      onClick={() => handleOpenDelete(user)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-500 font-bold text-xs rounded-lg transition-all"
+                      title="Hapus Akun"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Hapus
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 italic px-2 font-bold">Anda</span>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
         </Table>
       )}
 
-      {/* Top Up Modal Overlay */}
+      {/* --- MODAL 1: TOP UP SALDO --- */}
       {showTopUpModal && selectedUser && (
         <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden transform transition-all animate-scaleUp">
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
               <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
                 <Coins className="h-5 w-5 text-emerald-500 fill-current" />
                 Isi Saldo Pelanggan
               </h3>
-              <button 
-                onClick={handleCloseTopUp}
-                className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition"
-              >
+              <button onClick={() => setShowTopUpModal(false)} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Modal Body / Form */}
             <form onSubmit={handleTopUpSubmit} className="p-6 space-y-4">
-              {topUpSuccessMsg ? (
+              {successMsg ? (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-700 flex flex-col items-center justify-center text-center py-6 space-y-2">
-                  <div className="bg-emerald-500 text-white p-2.5 rounded-full shadow-lg shadow-emerald-500/20">
-                    <Check className="h-6 w-6 stroke-[3]" />
-                  </div>
+                  <div className="bg-emerald-500 text-white p-2.5 rounded-full shadow-lg shadow-emerald-500/20"><Check className="h-6 w-6 stroke-[3]" /></div>
                   <h4 className="font-extrabold text-slate-800 text-base">Top Up Sukses!</h4>
-                  <p className="text-xs font-semibold text-slate-500">{topUpSuccessMsg}</p>
+                  <p className="text-xs font-semibold text-slate-500">{successMsg}</p>
                 </div>
               ) : (
                 <>
+                  {errorMsg && (
+                    <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-600 flex items-center gap-2 text-xs font-bold">
+                      <AlertTriangle className="h-4 w-4 shrink-0" /> {errorMsg}
+                    </div>
+                  )}
+
                   <div className="bg-slate-50 p-4 border rounded-xl space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Informasi Pengguna</span>
                     <h4 className="font-extrabold text-slate-800 text-sm">{selectedUser.name}</h4>
@@ -194,15 +370,10 @@ const Users = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label htmlFor="amount" className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Nominal Top Up (Rupiah)
-                    </label>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Nominal Top Up (Rupiah)</label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-black text-sm">
-                        Rp
-                      </span>
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-black text-sm">Rp</span>
                       <input
-                        id="amount"
                         type="number"
                         min="5000"
                         step="5000"
@@ -210,39 +381,195 @@ const Users = () => {
                         placeholder="Contoh: 50000"
                         value={topUpAmount}
                         onChange={(e) => setTopUpAmount(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-sm font-extrabold"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-800 font-extrabold text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
                       />
                     </div>
-                    <span className="text-[10px] text-slate-400 font-semibold block">Minimum pengisian IDR 5.000 dengan kelipatan IDR 5.000</span>
                   </div>
 
-                  {/* Buttons */}
                   <div className="flex gap-3 pt-3">
-                    <button
-                      type="button"
-                      onClick={handleCloseTopUp}
-                      className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 font-bold text-sm text-slate-600 rounded-xl transition"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmittingTopUp || !topUpAmount}
-                      className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 font-bold text-sm text-white rounded-xl shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition flex items-center justify-center gap-1.5"
-                    >
-                      {isSubmittingTopUp ? (
-                        <Loader className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Check className="h-4 w-4 stroke-[3]" />
-                          Kirim Saldo
-                        </>
-                      )}
+                    <button type="button" onClick={() => setShowTopUpModal(false)} className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 font-bold text-sm text-slate-600 rounded-xl transition">Batal</button>
+                    <button type="submit" disabled={isSubmitting || !topUpAmount} className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 font-bold text-sm text-white rounded-xl shadow-lg disabled:opacity-50 transition flex items-center justify-center gap-1.5">
+                      {isSubmitting ? <Loader className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4 stroke-[3]" />Kirim Saldo</>}
                     </button>
                   </div>
                 </>
               )}
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 2: TAMBAH & EDIT USER --- */}
+      {showFormModal && (
+        <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden transform transition-all animate-scaleUp">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-emerald-500" />
+                {isEditMode ? 'Edit Profil Pengguna' : 'Tambah Pengguna Baru'}
+              </h3>
+              <button onClick={() => setShowFormModal(false)} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
+              {successMsg ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-700 flex flex-col items-center justify-center text-center py-6 space-y-2">
+                  <div className="bg-emerald-500 text-white p-2.5 rounded-full shadow-lg shadow-emerald-500/20"><Check className="h-6 w-6 stroke-[3]" /></div>
+                  <h4 className="font-extrabold text-slate-800 text-base">Berhasil!</h4>
+                  <p className="text-xs font-semibold text-slate-500">{successMsg}</p>
+                </div>
+              ) : (
+                <>
+                  {errorMsg && (
+                    <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-600 flex items-center gap-2 text-xs font-bold">
+                      <AlertTriangle className="h-4 w-4 shrink-0" /> {errorMsg}
+                    </div>
+                  )}
+
+                  {/* Input Name */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Lengkap</label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><User className="h-4 w-4" /></span>
+                      <input
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        placeholder="Contoh: Andi Pratama"
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-slate-800 font-semibold text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Input Email */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Email</label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><Mail className="h-4 w-4" /></span>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        placeholder="andi@gmail.com"
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-slate-800 font-semibold text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Input Password (Optional for Edit) */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      Password {isEditMode && '(Kosongkan jika tidak diubah)'}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><Lock className="h-4 w-4" /></span>
+                      <input
+                        type="password"
+                        required={!isEditMode}
+                        value={formData.password}
+                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                        placeholder="••••••••"
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-slate-800 font-semibold text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Input Role & Initial Balance */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Role Akses</label>
+                      <select
+                        value={formData.role}
+                        onChange={(e) => setFormData({...formData, role: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-slate-800 font-bold text-sm focus:outline-none"
+                      >
+                        <option value="user">Mobile User</option>
+                        <option value="admin">Administrator</option>
+                      </select>
+                    </div>
+
+                    {formData.role === 'user' && (
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Saldo Awal (Rp)</label>
+                        <input
+                          type="number"
+                          value={formData.balance}
+                          onChange={(e) => setFormData({...formData, balance: e.target.value})}
+                          placeholder="0"
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-slate-800 font-bold text-sm focus:outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onClick={() => setShowFormModal(false)} className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 font-bold text-sm text-slate-600 rounded-xl transition">Batal</button>
+                    <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 font-bold text-sm text-white rounded-xl shadow-lg disabled:opacity-50 transition flex items-center justify-center gap-1.5">
+                      {isSubmitting ? <Loader className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4 stroke-[3]" />Simpan</>}
+                    </button>
+                  </div>
+                </>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 3: CONFIRM DELETE USER --- */}
+      {showDeleteModal && selectedUser && (
+        <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden transform transition-all animate-scaleUp">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h3 className="text-base font-black text-rose-600 flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5" />
+                Konfirmasi Hapus Akun
+              </h3>
+              <button onClick={() => setShowDeleteModal(false)} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {successMsg ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-700 flex flex-col items-center justify-center text-center py-6 space-y-2">
+                  <div className="bg-emerald-500 text-white p-2.5 rounded-full shadow-lg shadow-emerald-500/20"><Check className="h-6 w-6 stroke-[3]" /></div>
+                  <h4 className="font-extrabold text-slate-800 text-base">Terhapus!</h4>
+                  <p className="text-xs font-semibold text-slate-500">{successMsg}</p>
+                </div>
+              ) : (
+                <>
+                  {errorMsg && (
+                    <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-600 flex items-center gap-2 text-xs font-bold">
+                      <AlertTriangle className="h-4 w-4 shrink-0" /> {errorMsg}
+                    </div>
+                  )}
+
+                  <div className="text-slate-600 text-sm font-semibold space-y-2">
+                    <p>Apakah Anda yakin ingin menghapus akun pengguna berikut secara permanen dari sistem SPBKLU?</p>
+                    <div className="bg-rose-50/50 p-4 border border-rose-100 rounded-xl text-slate-700 space-y-0.5">
+                      <div className="text-xs text-slate-400 font-bold">NAMA PELANGGAN</div>
+                      <div className="font-extrabold text-slate-800">{selectedUser.name}</div>
+                      <div className="text-xs text-slate-500 font-bold">{selectedUser.email}</div>
+                    </div>
+                    <p className="text-[11px] text-rose-500 font-extrabold flex items-start gap-1 pt-1">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>Tindakan ini tidak dapat dibatalkan. Menghapus akun juga akan memutus kaitan baterai sewaan yang sedang dibawa oleh pengguna ini.</span>
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-3">
+                    <button type="button" onClick={() => setShowDeleteModal(false)} className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 font-bold text-sm text-slate-600 rounded-xl transition">Batal</button>
+                    <button type="button" onClick={handleDeleteSubmit} disabled={isSubmitting} className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 font-bold text-sm text-white rounded-xl shadow-lg disabled:opacity-50 transition flex items-center justify-center gap-1.5">
+                      {isSubmitting ? <Loader className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4" />Hapus Akun</>}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

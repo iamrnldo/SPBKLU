@@ -9,6 +9,15 @@ router.get('/dashboard-stats', verifyToken, isAdmin, adminController.getDashboar
 // List all users in the system (Requires Login & Admin Role)
 router.get('/users', verifyToken, isAdmin, adminController.getAllUsers);
 
+// Create a new User/Admin (Requires Login & Admin Role)
+router.post('/users', verifyToken, isAdmin, adminController.createUser);
+
+// Update a User/Admin (Requires Login & Admin Role)
+router.put('/users/:id', verifyToken, isAdmin, adminController.updateUser);
+
+// Delete a User/Admin (Requires Login & Admin Role)
+router.delete('/users/:id', verifyToken, isAdmin, adminController.deleteUser);
+
 // Top up user balance (Requires Login & Admin Role)
 router.post('/users/:id/topup', verifyToken, isAdmin, adminController.topUpUser);
 

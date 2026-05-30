@@ -1,5 +1,9 @@
 {
-  "appId": "com.spbklu.app",
-  "appName": "SPBKLU",
-  "webDir": "dist"
+  "appId": "com.spbklu.userapp",
+  "appName": "SPBKLU Mobile",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
 }

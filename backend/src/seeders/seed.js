@@ -23,8 +23,8 @@ const seedData = async () => {
     // Seed Users
     const adminUser = await User.create({
       name: 'Admin SPBKLU',
-      email: 'iamrnldo@gmail.com',
-      password: iamrnldo,
+      email: 'admin@spbklu.com',
+      password: adminPassword,
       role: 'admin',
       balance: 0
     });
