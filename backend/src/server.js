@@ -18,7 +18,7 @@ const startServer = async () => {
       console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`  Port: ${PORT}`);
       console.log(`  URL: http://127.0.0.1:${PORT} (Local)`);
-      console.log(`  Network: http://192.168.1.154:${PORT} (Wi-Fi)`);
+      console.log(`  Network: http://192.168.1.44:${PORT} (Wi-Fi)`);
       console.log(`=========================================`);
     });
   } catch (error) {
