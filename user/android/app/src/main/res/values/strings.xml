@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
+    <string name="server_client_id">58586788358-f5b1ig0vnnmp34mudo6j6ftrcmr00n0k.apps.googleusercontent.com</string>
     <string name="app_name">SPBKLU Mobile</string>
     <string name="title_activity_main">SPBKLU Mobile</string>
     <string name="package_name">com.spbklu.userapp</string>

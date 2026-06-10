@@ -20,11 +20,9 @@ const Home = () => {
       // 2. Refresh user profile (for latest wallet balance)
       await refreshProfile();
 
-      // 3. Find if user currently carries an active battery
-      const batteriesRes = await api.get('/batteries'); // Admins only, but in our backend, user detail endpoint or general check
-      // Users can query their battery diagnostics, let's filter batteries held by this user
-      const userBattery = batteriesRes.data.data.find(b => b.currentUserId === user.id);
-      setActiveBattery(userBattery || null);
+      // 3. Find if user currently carries an active battery safely via the new user-specific endpoint
+      const batteryRes = await api.get('/users/my-battery');
+      setActiveBattery(batteryRes.data.data || null);
     } catch (error) {
       console.error('Failed to load home dashboard data:', error);
       // Fallback fallback simulated battery if route restricted or for demo reliability

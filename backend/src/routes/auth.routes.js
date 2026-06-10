@@ -8,4 +8,8 @@ router.post('/register', authController.registerUser);
 // Login (All accounts: users and admin web)
 router.post('/login', authController.login);
 
+// Social Media OAuth logins
+router.post('/google', authController.googleLogin);
+router.post('/facebook', authController.facebookLogin);
+
 module.exports = router;

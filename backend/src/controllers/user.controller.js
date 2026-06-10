@@ -1,4 +1,5 @@
 const User = require('../models/user.model');
+const Battery = require('../models/battery.model');
 const { sendSuccess, sendError } = require('../utils/response');
 
 /**
@@ -52,7 +53,22 @@ const topUpBalance = async (req, res, next) => {
   }
 };
 
+/**
+ * Fetch currently carried active battery (Mobile user)
+ */
+const getMyBattery = async (req, res, next) => {
+  try {
+    const battery = await Battery.findOne({
+      where: { currentUserId: req.user.id }
+    });
+    return sendSuccess(res, 'Active battery retrieved successfully', battery);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProfile,
-  topUpBalance
+  topUpBalance,
+  getMyBattery
 };

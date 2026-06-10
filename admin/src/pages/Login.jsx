@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Zap, Mail, Lock, AlertCircle, Loader } from 'lucide-react';
 
@@ -17,7 +17,7 @@ const Login = () => {
 
   // If already logged in, redirect immediately
   if (user) {
-    return <navigate to="/" replace />;
+    return <Navigate to="/" replace />;
   }
 
   const handleSubmit = async (e) => {

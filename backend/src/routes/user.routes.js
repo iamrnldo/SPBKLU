@@ -6,6 +6,9 @@ const { verifyToken, isUser } = require('../middlewares/auth.middleware');
 // Fetch current user profile (Requires Login)
 router.get('/profile', verifyToken, userController.getProfile);
 
+// Fetch currently held active battery (Requires Login & Regular User Role)
+router.get('/my-battery', verifyToken, isUser, userController.getMyBattery);
+
 // Top up wallet balance (Requires Login & Regular User Role)
 router.post('/topup', verifyToken, isUser, userController.topUpBalance);
 

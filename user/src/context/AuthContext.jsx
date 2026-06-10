@@ -65,6 +65,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogle = async (googleData) => {
+    try {
+      const response = await api.post('/auth/google', googleData);
+      const { user: userData, token } = response.data.data;
+
+      setUser(userData);
+      localStorage.setItem('spbklu_user_token', token);
+      localStorage.setItem('spbklu_user_data', JSON.stringify(userData));
+      return { success: true };
+    } catch (error) {
+      const errMsg = error.response?.data?.message || error.message || 'Login Google gagal';
+      return { success: false, error: errMsg };
+    }
+  };
+
+  const loginWithFacebook = async (fbData) => {
+    try {
+      const response = await api.post('/auth/facebook', fbData);
+      const { user: userData, token } = response.data.data;
+
+      setUser(userData);
+      localStorage.setItem('spbklu_user_token', token);
+      localStorage.setItem('spbklu_user_data', JSON.stringify(userData));
+      return { success: true };
+    } catch (error) {
+      const errMsg = error.response?.data?.message || error.message || 'Login Facebook gagal';
+      return { success: false, error: errMsg };
+    }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('spbklu_user_token');
@@ -72,7 +102,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, refreshProfile, loading }}>
+    <AuthContext.Provider value={{ user, login, register, loginWithGoogle, loginWithFacebook, logout, refreshProfile, loading }}>
       {children}
     </AuthContext.Provider>
   );
