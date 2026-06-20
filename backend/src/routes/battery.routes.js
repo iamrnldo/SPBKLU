@@ -3,13 +3,19 @@ const router = express.Router();
 const batteryController = require('../controllers/battery.controller');
 const { verifyToken, isAdmin } = require('../middlewares/auth.middleware');
 
-// Get all batteries (Requires Login & Admin Role)
+// Get all registered charging cable points (Requires Login & Admin Role)
 router.get('/', verifyToken, isAdmin, batteryController.getAllBatteries);
 
-// Get battery health diagnostics or details by ID
+// Generate/print QR code for a charging cable point (Requires Login & Admin Role)
+router.get('/:id/qr', verifyToken, isAdmin, batteryController.getBatteryQr);
+router.post('/:id/regenerate-qr', verifyToken, isAdmin, batteryController.regenerateBatteryQr);
+
+// Get charging cable diagnostics or details by ID
 router.get('/:id', verifyToken, batteryController.getBatteryDetail);
 
-// Register a new battery to the system (Requires Login & Admin Role)
+// Register/update/delete charging cable point (Requires Login & Admin Role)
 router.post('/', verifyToken, isAdmin, batteryController.createBattery);
+router.put('/:id', verifyToken, isAdmin, batteryController.updateBattery);
+router.delete('/:id', verifyToken, isAdmin, batteryController.deleteBattery);
 
 module.exports = router;

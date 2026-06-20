@@ -3,6 +3,8 @@ const User = require('../models/user.model');
 const Station = require('../models/station.model');
 const Battery = require('../models/battery.model');
 const Transaction = require('../models/transaction.model');
+const ChargingSession = require('../models/charging.model');
+const { Op } = require('sequelize');
 const { sendSuccess, sendError } = require('../utils/response');
 
 /**
@@ -14,10 +16,14 @@ const getDashboardStats = async (req, res, next) => {
     const totalUsers = await User.count({ where: { role: 'user' } });
     const totalStations = await Station.count();
     const totalBatteries = await Battery.count();
-    const totalTransactions = await Transaction.count();
+    const totalSwapTransactions = await Transaction.count();
+    const totalChargingTransactions = await ChargingSession.count();
+    const totalTransactions = totalSwapTransactions + totalChargingTransactions;
     
-    // Calculate total revenue from completed transactions
-    const totalRevenue = await Transaction.sum('cost', { where: { status: 'completed' } }) || 0;
+    // Calculate total revenue from completed legacy swaps and QR charging sessions
+    const swapRevenue = await Transaction.sum('cost', { where: { status: 'completed' } }) || 0;
+    const chargingRevenue = await ChargingSession.sum('amount', { where: { status: { [Op.in]: ['charging', 'completed'] } } }) || 0;
+    const totalRevenue = swapRevenue + chargingRevenue;
 
     const operationalRate = "99.2%"; // KPI simulation
 

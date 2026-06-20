@@ -3,6 +3,8 @@ const User = require('./user.model');
 const Station = require('./station.model');
 const Battery = require('./battery.model');
 const Transaction = require('./transaction.model');
+const TopUpTransaction = require('./topup.model');
+const ChargingSession = require('./charging.model');
 
 // --- Associations / Relationships ---
 
@@ -26,10 +28,26 @@ Transaction.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 Station.hasMany(Transaction, { foreignKey: 'stationId', as: 'transactions' });
 Transaction.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
 
+// 5. User <-> TopUpTransaction
+// A user can create many wallet top-up payments
+User.hasMany(TopUpTransaction, { foreignKey: 'userId', as: 'topups' });
+TopUpTransaction.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// 6. Charging session relationships
+// A charging session is created from a user scanning a charging cable QR.
+User.hasMany(ChargingSession, { foreignKey: 'userId', as: 'chargingSessions' });
+ChargingSession.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Battery.hasMany(ChargingSession, { foreignKey: 'cableId', as: 'chargingSessions' });
+ChargingSession.belongsTo(Battery, { foreignKey: 'cableId', as: 'cable' });
+Station.hasMany(ChargingSession, { foreignKey: 'stationId', as: 'chargingSessions' });
+ChargingSession.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
+
 module.exports = {
   sequelize,
   User,
   Station,
   Battery,
-  Transaction
+  Transaction,
+  TopUpTransaction,
+  ChargingSession
 };

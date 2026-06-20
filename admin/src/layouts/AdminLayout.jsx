@@ -31,8 +31,10 @@ const AdminLayout = () => {
         return 'Manajemen Akun User';
       case '/stations':
         return 'Manajemen Stasiun SPBKLU';
+      case '/map':
+        return 'Peta QR Kabel Charger';
       case '/batteries':
-        return 'Database & Diagnostik Baterai';
+        return 'Database Kabel Charger';
       case '/transactions':
         return 'Laporan Transaksi Swap Baterai';
       case '/settings':

@@ -18,11 +18,30 @@ try {
     // Inject android:usesCleartextTraffic="true" inside <application ...> tag
     const searchPattern = '<application';
     const replacement = '<application\n        android:usesCleartextTraffic="true"';
-    
+
     content = content.replace(searchPattern, replacement);
-    fs.writeFileSync(manifestPath, content, 'utf8');
     console.log('✅ BERHASIL: usesCleartextTraffic="true" telah otomatis ditambahkan ke AndroidManifest.xml!');
   }
+
+  const requiredPermissions = [
+    'android.permission.INTERNET',
+    'android.permission.CAMERA'
+  ];
+
+  requiredPermissions.forEach((permission) => {
+    if (content.includes(`android:name="${permission}"`)) {
+      console.log(`ℹ️ Permission ${permission} sudah terkonfigurasi di AndroidManifest.xml.`);
+      return;
+    }
+
+    const permissionLine = `    <uses-permission android:name="${permission}" />\n`;
+    if (content.includes('</manifest>')) {
+      content = content.replace('</manifest>', `${permissionLine}</manifest>`);
+      console.log(`✅ BERHASIL: Permission ${permission} telah ditambahkan ke AndroidManifest.xml!`);
+    }
+  });
+
+  fs.writeFileSync(manifestPath, content, 'utf8');
 } catch (error) {
   console.error('❌ Gagal mengubah AndroidManifest.xml:', error.message);
 }

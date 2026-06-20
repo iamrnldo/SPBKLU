@@ -99,6 +99,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('spbklu_user_token');
     localStorage.removeItem('spbklu_user_data');
+    localStorage.removeItem('spbklu_active_charging_session');
   };
 
   return (

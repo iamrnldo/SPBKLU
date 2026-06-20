@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import Header from '../components/Header';
-import { MapPin, Battery, RefreshCw, Zap, Navigation, ShieldCheck } from 'lucide-react';
+import { MapPin, Battery, RefreshCw, Zap, Navigation, BatteryCharging } from 'lucide-react';
 
 const Home = () => {
   const { user, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeBattery, setActiveBattery] = useState(null);
+  const [activeCharging, setActiveCharging] = useState(null);
 
   const fetchHomeData = async () => {
     try {
@@ -20,7 +23,11 @@ const Home = () => {
       // 2. Refresh user profile (for latest wallet balance)
       await refreshProfile();
 
-      // 3. Find if user currently carries an active battery safely via the new user-specific endpoint
+      // 3. Restore active charging session if user closed/minimized app while charging
+      const chargingRes = await api.get('/charging/active');
+      setActiveCharging(chargingRes.data.data || null);
+
+      // 4. Legacy battery endpoint kept for old demo data
       const batteryRes = await api.get('/users/my-battery');
       setActiveBattery(batteryRes.data.data || null);
     } catch (error) {
@@ -61,6 +68,33 @@ const Home = () => {
       <Header />
 
       <main className="px-5 py-6 space-y-6">
+        {activeCharging?.session?.status === 'charging' && (
+          <section className="bg-blue-50 border border-blue-100 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="bg-blue-500 text-white p-2.5 rounded-xl shadow-sm">
+                <BatteryCharging className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-500">Sesi Charging Aktif</span>
+                <h3 className="font-black text-slate-800 text-sm mt-0.5">{activeCharging.session.cableName}</h3>
+                <p className="text-xs text-slate-500 font-semibold mt-1">
+                  Anda masih memiliki sesi charging yang belum diselesaikan. Buka halaman scan untuk menekan tombol Selesai Mengisi.
+                </p>
+              </div>
+            </div>
+            <div className="bg-white/70 border border-blue-100 rounded-xl p-3 text-xs font-semibold text-slate-600 space-y-1.5">
+              <div className="flex justify-between"><span>ID Sesi</span><span className="font-black text-slate-800">#{activeCharging.session.sessionId}</span></div>
+              <div className="flex justify-between"><span>Energi</span><span className="font-black text-blue-600">{(Number(activeCharging.session.estimatedKwh || 0)).toFixed(2)} kWh</span></div>
+            </div>
+            <button
+              onClick={() => navigate('/swap-qr')}
+              className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-black text-sm rounded-xl transition shadow-lg shadow-blue-500/10"
+            >
+              Lanjutkan / Selesaikan Charging
+            </button>
+          </section>
+        )}
+
         {/* SECTION 1: Active Battery Status */}
         <section className="space-y-2.5">
           <div className="flex items-center justify-between">

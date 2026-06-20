@@ -25,6 +25,7 @@
     "morgan": "^1.10.0",
     "pg": "^8.21.0",
     "pg-hstore": "^2.3.4",
+    "qrcode": "^1.5.4",
     "sequelize": "^6.37.8"
   },
   "devDependencies": {
